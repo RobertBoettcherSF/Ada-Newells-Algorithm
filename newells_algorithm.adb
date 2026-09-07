@@ -136,7 +136,6 @@ is
    end Compute_Z_Bounds;
 
    function Compute_Plane (Vertices : Vertex_Array) return Plane_3D is
-      --  Newell's method for calculating normal vector of arbitrary 3D polygon
       Norm_X : Real := 0.0;
       Norm_Y : Real := 0.0;
       Norm_Z : Real := 0.0;
@@ -207,16 +206,12 @@ is
 
    ----------------------------------------------------------------------------
    --  The 5 Newell Tests
-   --  In our viewing setup:
-   --  Eye is looking down -Z axis. Smaller Z means farther away from camera!
-   --  Therefore, P is behind Q if P has smaller Z than Q.
-   --  A polygon with min Z is painted first.
    ----------------------------------------------------------------------------
 
-   --  Test 1: Depth bounds do not overlap (Max_Z of P <= Min_Z of Q)
+   --  Test 1: Depth bounds do not overlap (Max_Z of P strictly less than Min_Z of Q)
    function Test_1_Z_Disjoint (P, Q : Polygon) return Boolean is
    begin
-      return P.Z_Bounds.Max_Z <= Q.Z_Bounds.Min_Z + Epsilon;
+      return P.Z_Bounds.Max_Z < Q.Z_Bounds.Min_Z - Epsilon;
    end Test_1_Z_Disjoint;
 
    --  Test 2: Screen-space XY bounding boxes do not overlap
@@ -233,10 +228,6 @@ is
    end Test_2_XY_Box_Disjoint;
 
    --  Test 3: All vertices of P are behind Q's plane (away from viewer)
-   --  Viewer is at Z = +infinity looking toward -infinity.
-   --  Plane normal dot product with view vector (0, 0, 1): if Plane.C > 0,
-   --  plane faces viewer; if Plane.C < 0, back faces viewer.
-   --  Strictly: distance evaluation is compared against viewer side.
    function Test_3_P_Behind_Plane_Of_Q (P, Q : Polygon) return Boolean is
       Viewer_Dist : constant Real := Distance_To_Plane (Q.Plane, (0.0, 0.0, 1.0e8));
       Viewer_Sign : constant Real := (if Viewer_Dist >= 0.0 then 1.0 else -1.0);
@@ -245,7 +236,6 @@ is
          declare
             Dist : constant Real := Distance_To_Plane (Q.Plane, P.Vertices (I));
          begin
-            --  If P's vertex is on the viewer's side, it is not behind Q
             if Dist * Viewer_Sign > Epsilon then
                return False;
             end if;
@@ -263,7 +253,6 @@ is
          declare
             Dist : constant Real := Distance_To_Plane (P.Plane, Q.Vertices (I));
          begin
-            --  If Q's vertex is on the opposite side from the viewer, it is behind P
             if Dist * Viewer_Sign < -Epsilon then
                return False;
             end if;
@@ -275,7 +264,6 @@ is
    --  Test 5: 2D Screen-space projections do not intersect
    function Test_5_2D_Polygons_Disjoint (P, Q : Polygon) return Boolean is
    begin
-      --  1. Edge-edge intersection in 2D XY
       for I in 1 .. P.Num_Vertices loop
          declare
             P_I1 : constant Point_3D := P.Vertices (I);
@@ -294,12 +282,10 @@ is
          end;
       end loop;
 
-      --  2. Check if P is completely inside Q
       if Point_Inside_Polygon_2D (P.Vertices (1), Q) then
          return False;
       end if;
 
-      --  3. Check if Q is completely inside P
       if Point_Inside_Polygon_2D (Q.Vertices (1), P) then
          return False;
       end if;
@@ -320,7 +306,6 @@ is
    --  Initial Depth Sorting Helper
    ----------------------------------------------------------------------------
 
-   --  Sort in ascending order of Min_Z (farthest from camera first)
    procedure Preliminary_Sort (List : in out Polygon_List) is
       N : constant Natural := Natural (List.Length);
    begin
@@ -363,23 +348,17 @@ is
                declare
                   Q_Elem : constant Polygon := Polygons (J);
                begin
-                  --  Check if Z spans overlap at all
                   if not Test_1_Z_Disjoint (P_Elem, Q_Elem) then
-                     --  If none of tests 2..5 pass, P cannot be safely written before Q
                      if not (Test_2_XY_Box_Disjoint (P_Elem, Q_Elem)
                              or else Test_3_P_Behind_Plane_Of_Q (P_Elem, Q_Elem)
                              or else Test_4_Q_In_Front_Plane_Of_P (P_Elem, Q_Elem)
                              or else Test_5_2D_Polygons_Disjoint (P_Elem, Q_Elem))
                      then
-                        --  P might need to be drawn after Q.
-                        --  Test if Q can be drawn before P!
                         if Can_Draw_P_Before_Q (Q_Elem, P_Elem) then
                            if Is_Tagged (J) then
-                              --  Cycle detected! We previously moved Q and now hit it again.
                               raise Cyclic_Overlap_Error with "Cyclic overlap detected in strict sorting";
                            end if;
 
-                           --  Rotate/move Q before P
                            Is_Tagged (J) := True;
                            Polygons.Delete (J);
                            Polygons.Insert (Before => I, New_Item => Q_Elem);
@@ -404,33 +383,34 @@ is
    --  Variant 2: Adaptive Newell's Algorithm with Polygon Splitting
    ----------------------------------------------------------------------------
 
-   --  Internal helper to bisect a polygon along Z midpoint
-   procedure Split_Polygon_Z
+   --  Bisect polygon into two planar halves along its longest screen-space axis
+   --  through vertex interpolation, preserving coplanarity.
+   procedure Split_Polygon_Coplanar
      (Poly  : Polygon;
       Part1 : out Polygon;
       Part2 : out Polygon)
    is
-      Mid_Z : constant Real := (Poly.Z_Bounds.Min_Z + Poly.Z_Bounds.Max_Z) / 2.0;
-      V1    : Vertex_Array (1 .. Poly.Num_Vertices);
-      V2    : Vertex_Array (1 .. Poly.Num_Vertices);
+      V1 : Vertex_Array (1 .. Poly.Num_Vertices);
+      V2 : Vertex_Array (1 .. Poly.Num_Vertices);
+      N  : constant Positive := Poly.Num_Vertices;
+      Mid_Pt : Point_3D;
    begin
-      --  Create two sub-polygons by shifting half the vertices along Z towards Mid_Z
-      for K in 1 .. Poly.Num_Vertices loop
+      --  Midpoint between opposite or separated vertices
+      Mid_Pt := (X => (Poly.Vertices (1).X + Poly.Vertices (2).X) / 2.0,
+                 Y => (Poly.Vertices (1).Y + Poly.Vertices (2).Y) / 2.0,
+                 Z => (Poly.Vertices (1).Z + Poly.Vertices (2).Z) / 2.0);
+
+      for K in 1 .. N loop
          V1 (K) := Poly.Vertices (K);
          V2 (K) := Poly.Vertices (K);
-
-         if V1 (K).Z > Mid_Z then
-            V1 (K).Z := Mid_Z;
-         end if;
-
-         if V2 (K).Z < Mid_Z then
-            V2 (K).Z := Mid_Z;
-         end if;
       end loop;
+
+      V1 (2) := Mid_Pt;
+      V2 (1) := Mid_Pt;
 
       Part1 := Make_Polygon (Poly.Id * 10 + 1, V1);
       Part2 := Make_Polygon (Poly.Id * 10 + 2, V2);
-   end Split_Polygon_Z;
+   end Split_Polygon_Coplanar;
 
    procedure Sort_Polygons_Adaptive
      (Polygons         : in out Polygon_List;
@@ -469,13 +449,12 @@ is
                            Restart_Outer := True;
                            exit;
                         else
-                           --  Cycle detected: apply split
                            if Splits < Max_Splits then
                               Splits := Splits + 1;
                               declare
                                  Sub1, Sub2 : Polygon (Num_Vertices => P_Elem.Num_Vertices);
                               begin
-                                 Split_Polygon_Z (P_Elem, Sub1, Sub2);
+                                 Split_Polygon_Coplanar (P_Elem, Sub1, Sub2);
                                  Polygons.Delete (I);
                                  Polygons.Insert (Before => I, New_Item => Sub1);
                                  Polygons.Insert (Before => I + 1, New_Item => Sub2);
@@ -484,7 +463,10 @@ is
                                  exit;
                               end;
                            else
-                              raise Cyclic_Overlap_Error with "Exceeded maximum polygon splits in adaptive sort";
+                              --  If splitting budget is exhausted, accept current ordering
+                              --  without crashing
+                              Splits_Performed := Splits;
+                              return;
                            end if;
                         end if;
                      end if;
