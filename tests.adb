@@ -227,7 +227,7 @@ begin
          declare
             Dummy : constant Polygon := Make_Polygon (10, Degen);
          begin
-            if Dummy.Num_Vertices > 0 then
+            if Dummy.Num_Vertices /= 0 then
                null;
             end if;
          end;
@@ -289,7 +289,7 @@ begin
 
       Check ("13.1 Adaptive sorting executed without unhandled exception", True);
       Check ("13.2 Polygons list is populated", List.Length >= 2);
-      Check ("13.3 Split counter is non-negative", True);
+      Check ("13.3 Split counter is non-negative", Splits <= 5);
    end;
 
    ----------------------------------------------------------------------------
