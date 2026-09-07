@@ -171,7 +171,7 @@ begin
    end;
 
    ----------------------------------------------------------------------------
-   --  TEST 9 -- Sorting Reversal (P initially before Q, but Q obscures P)
+   --  TEST 9 -- Depth Conflict Order Resolution
    ----------------------------------------------------------------------------
    Put_Line ("TEST 9 -- Depth Conflict Order Resolution");
    declare
@@ -219,17 +219,15 @@ begin
    Put_Line ("TEST 11 -- Error Handling: Degenerate Polygon");
    declare
       Caught : Boolean := False;
-      --  Collinear vertices with zero area
       Degen : constant Vertex_Array (1 .. 3) :=
         [(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 2.0, 2.0)];
    begin
       begin
          declare
             Dummy : constant Polygon := Make_Polygon (10, Degen);
+            pragma Warnings (Off, Dummy);
          begin
-            if Dummy.Num_Vertices /= 0 then
-               null;
-            end if;
+            null;
          end;
       exception
          when Degenerate_Polygon_Error =>
@@ -289,7 +287,7 @@ begin
 
       Check ("13.1 Adaptive sorting executed without unhandled exception", True);
       Check ("13.2 Polygons list is populated", List.Length >= 2);
-      Check ("13.3 Split counter is non-negative", Splits <= 5);
+      Check ("13.3 Split budget respected", Splits <= 5);
    end;
 
    ----------------------------------------------------------------------------
