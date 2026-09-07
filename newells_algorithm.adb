@@ -343,10 +343,10 @@ is
    ----------------------------------------------------------------------------
 
    procedure Sort_Polygons_Strict (Polygons : in out Polygon_List) is
-      N : Natural := Natural (Polygons.Length);
+      N : constant Natural := Natural (Polygons.Length);
       I : Positive := 1;
-      type Tag_Array is array (1 .. N) of Boolean;
-      Tagged : Tag_Array := (others => False);
+      type Tag_List is array (1 .. N) of Boolean;
+      Is_Tagged : Tag_List := [others => False];
    begin
       if N <= 1 then
          return;
@@ -356,12 +356,12 @@ is
 
       while I < N loop
          declare
-            P_Elem : Polygon := Polygons (I);
+            P_Elem : constant Polygon := Polygons (I);
             Restart_Outer : Boolean := False;
          begin
             for J in I + 1 .. N loop
                declare
-                  Q_Elem : Polygon := Polygons (J);
+                  Q_Elem : constant Polygon := Polygons (J);
                begin
                   --  Check if Z spans overlap at all
                   if not Test_1_Z_Disjoint (P_Elem, Q_Elem) then
@@ -374,13 +374,13 @@ is
                         --  P might need to be drawn after Q.
                         --  Test if Q can be drawn before P!
                         if Can_Draw_P_Before_Q (Q_Elem, P_Elem) then
-                           if Tagged (J) then
+                           if Is_Tagged (J) then
                               --  Cycle detected! We previously moved Q and now hit it again.
                               raise Cyclic_Overlap_Error with "Cyclic overlap detected in strict sorting";
                            end if;
 
                            --  Rotate/move Q before P
-                           Tagged (J) := True;
+                           Is_Tagged (J) := True;
                            Polygons.Delete (J);
                            Polygons.Insert (Before => I, New_Item => Q_Elem);
                            Restart_Outer := True;
@@ -438,6 +438,7 @@ is
       Splits_Performed : out Natural)
    is
       Splits : Natural := 0;
+      I      : Positive := 1;
    begin
       Splits_Performed := 0;
       if Polygons.Length <= 1 then
@@ -446,60 +447,56 @@ is
 
       Preliminary_Sort (Polygons);
 
-      declare
-         I : Positive := 1;
-      begin
-         while I < Natural (Polygons.Length) loop
-            declare
-               P_Elem : Polygon := Polygons (I);
-               Restart_Outer : Boolean := False;
-               N : constant Natural := Natural (Polygons.Length);
-            begin
-               for J in I + 1 .. N loop
-                  declare
-                     Q_Elem : Polygon := Polygons (J);
-                  begin
-                     if not Test_1_Z_Disjoint (P_Elem, Q_Elem) then
-                        if not (Test_2_XY_Box_Disjoint (P_Elem, Q_Elem)
-                                or else Test_3_P_Behind_Plane_Of_Q (P_Elem, Q_Elem)
-                                or else Test_4_Q_In_Front_Plane_Of_P (P_Elem, Q_Elem)
-                                or else Test_5_2D_Polygons_Disjoint (P_Elem, Q_Elem))
-                        then
-                           if Can_Draw_P_Before_Q (Q_Elem, P_Elem) then
-                              Polygons.Delete (J);
-                              Polygons.Insert (Before => I, New_Item => Q_Elem);
-                              Restart_Outer := True;
-                              exit;
+      while I < Natural (Polygons.Length) loop
+         declare
+            P_Elem        : constant Polygon := Polygons (I);
+            Restart_Outer : Boolean := False;
+            N             : constant Natural := Natural (Polygons.Length);
+         begin
+            for J in I + 1 .. N loop
+               declare
+                  Q_Elem : constant Polygon := Polygons (J);
+               begin
+                  if not Test_1_Z_Disjoint (P_Elem, Q_Elem) then
+                     if not (Test_2_XY_Box_Disjoint (P_Elem, Q_Elem)
+                             or else Test_3_P_Behind_Plane_Of_Q (P_Elem, Q_Elem)
+                             or else Test_4_Q_In_Front_Plane_Of_P (P_Elem, Q_Elem)
+                             or else Test_5_2D_Polygons_Disjoint (P_Elem, Q_Elem))
+                     then
+                        if Can_Draw_P_Before_Q (Q_Elem, P_Elem) then
+                           Polygons.Delete (J);
+                           Polygons.Insert (Before => I, New_Item => Q_Elem);
+                           Restart_Outer := True;
+                           exit;
+                        else
+                           --  Cycle detected: apply split
+                           if Splits < Max_Splits then
+                              Splits := Splits + 1;
+                              declare
+                                 Sub1, Sub2 : Polygon (Num_Vertices => P_Elem.Num_Vertices);
+                              begin
+                                 Split_Polygon_Z (P_Elem, Sub1, Sub2);
+                                 Polygons.Delete (I);
+                                 Polygons.Insert (Before => I, New_Item => Sub1);
+                                 Polygons.Insert (Before => I + 1, New_Item => Sub2);
+                                 Preliminary_Sort (Polygons);
+                                 Restart_Outer := True;
+                                 exit;
+                              end;
                            else
-                              --  Cycle detected: apply split
-                              if Splits < Max_Splits then
-                                 Splits := Splits + 1;
-                                 declare
-                                    Sub1, Sub2 : Polygon (Num_Vertices => P_Elem.Num_Vertices);
-                                 begin
-                                    Split_Polygon_Z (P_Elem, Sub1, Sub2);
-                                    Polygons.Delete (I);
-                                    Polygons.Insert (Before => I, New_Item => Sub1);
-                                    Polygons.Insert (Before => I + 1, New_Item => Sub2);
-                                    Preliminary_Sort (Polygons);
-                                    Restart_Outer := True;
-                                    exit;
-                                 end;
-                              else
-                                 raise Cyclic_Overlap_Error with "Exceeded maximum polygon splits in adaptive sort";
-                              end if;
+                              raise Cyclic_Overlap_Error with "Exceeded maximum polygon splits in adaptive sort";
                            end if;
                         end if;
                      end if;
-                  end;
-               end loop;
+                  end if;
+               end;
+            end loop;
 
-               if not Restart_Outer then
-                  I := I + 1;
-               end if;
-            end;
-         end loop;
-      end declare;
+            if not Restart_Outer then
+               I := I + 1;
+            end if;
+         end;
+      end loop;
 
       Splits_Performed := Splits;
    end Sort_Polygons_Adaptive;
