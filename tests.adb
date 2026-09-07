@@ -2,6 +2,7 @@
 --  Validates all 5 geometric tests, helpers, sorting invariants, edge cases,
 --  and error conditions.
 
+with Ada.Containers; use Ada.Containers;
 with Ada.Text_IO; use Ada.Text_IO;
 with Newells_Algorithm; use Newells_Algorithm;
 
@@ -28,10 +29,10 @@ begin
    declare
       --  Square in XY plane at Z = -5.0
       V : constant Vertex_Array (1 .. 4) :=
-        ((0.0, 0.0, -5.0),
+        [(0.0, 0.0, -5.0),
          (2.0, 0.0, -5.0),
          (2.0, 2.0, -5.0),
-         (0.0, 2.0, -5.0));
+         (0.0, 2.0, -5.0)];
       Pl : constant Plane_3D := Compute_Plane (V);
    begin
       Check ("1.1 Normal X is zero", abs (Pl.A) < 1.0e-5);
@@ -45,16 +46,16 @@ begin
    Put_Line ("TEST 2 -- Test 1: Z Disjointness");
    declare
       P_Verts : constant Vertex_Array (1 .. 3) :=
-        ((0.0, 0.0, -20.0), (1.0, 0.0, -20.0), (0.0, 1.0, -20.0));
+        [(0.0, 0.0, -20.0), (1.0, 0.0, -20.0), (0.0, 1.0, -20.0)];
       Q_Verts : constant Vertex_Array (1 .. 3) :=
-        ((0.0, 0.0, -5.0), (1.0, 0.0, -5.0), (0.0, 1.0, -5.0));
+        [(0.0, 0.0, -5.0), (1.0, 0.0, -5.0), (0.0, 1.0, -5.0)];
 
       P : constant Polygon := Make_Polygon (1, P_Verts);
       Q : constant Polygon := Make_Polygon (2, Q_Verts);
    begin
-      Check ("2.1 P is strictly behind Q in Z", Test_1_Z_Disjoint (P, Q));
-      Check ("2.2 Q is not behind P in Z", not Test_1_Z_Disjoint (Q, P));
-      Check ("2.3 Composite test passes", Can_Draw_P_Before_Q (P, Q));
+      Check ("2.1 P is strictly behind Q in Z", Test_1_Z_Disjoint (P => P, Q => Q));
+      Check ("2.2 Q is not behind P in Z", not Test_1_Z_Disjoint (P => Q, Q => P));
+      Check ("2.3 Composite test passes", Can_Draw_P_Before_Q (P => P, Q => Q));
    end;
 
    ----------------------------------------------------------------------------
@@ -64,16 +65,16 @@ begin
    declare
       --  Overlapping in Z, but separated on the X axis
       P_Verts : constant Vertex_Array (1 .. 3) :=
-        ((0.0, 0.0, -10.0), (2.0, 0.0, -10.0), (1.0, 2.0, -10.0));
+        [(0.0, 0.0, -10.0), (2.0, 0.0, -10.0), (1.0, 2.0, -10.0)];
       Q_Verts : constant Vertex_Array (1 .. 3) :=
-        ((5.0, 0.0, -10.0), (7.0, 0.0, -10.0), (6.0, 2.0, -10.0));
+        [(5.0, 0.0, -10.0), (7.0, 0.0, -10.0), (6.0, 2.0, -10.0)];
 
       P : constant Polygon := Make_Polygon (1, P_Verts);
       Q : constant Polygon := Make_Polygon (2, Q_Verts);
    begin
-      Check ("3.1 Z spans overlap", not Test_1_Z_Disjoint (P, Q));
-      Check ("3.2 XY Bounding boxes are disjoint", Test_2_XY_Box_Disjoint (P, Q));
-      Check ("3.3 Can draw P before Q", Can_Draw_P_Before_Q (P, Q));
+      Check ("3.1 Z spans overlap", not Test_1_Z_Disjoint (P => P, Q => Q));
+      Check ("3.2 XY Bounding boxes are disjoint", Test_2_XY_Box_Disjoint (P => P, Q => Q));
+      Check ("3.3 Can draw P before Q", Can_Draw_P_Before_Q (P => P, Q => Q));
    end;
 
    ----------------------------------------------------------------------------
@@ -83,16 +84,16 @@ begin
    declare
       --  Q is angled, P's vertices are all farther from the camera than Q's plane
       Q_Verts : constant Vertex_Array (1 .. 4) :=
-        ((0.0, 0.0, -5.0), (4.0, 0.0, -5.0), (4.0, 4.0, -5.0), (0.0, 4.0, -5.0));
+        [(0.0, 0.0, -5.0), (4.0, 0.0, -5.0), (4.0, 4.0, -5.0), (0.0, 4.0, -5.0)];
       P_Verts : constant Vertex_Array (1 .. 3) :=
-        ((1.0, 1.0, -8.0), (2.0, 1.0, -8.0), (1.0, 2.0, -8.0));
+        [(1.0, 1.0, -8.0), (2.0, 1.0, -8.0), (1.0, 2.0, -8.0)];
 
       P : constant Polygon := Make_Polygon (1, P_Verts);
       Q : constant Polygon := Make_Polygon (2, Q_Verts);
    begin
-      Check ("4.1 P behind plane of Q", Test_3_P_Behind_Plane_Of_Q (P, Q));
-      Check ("4.2 Q not behind plane of P", not Test_3_P_Behind_Plane_Of_Q (Q, P));
-      Check ("4.3 Drawing P before Q is valid", Can_Draw_P_Before_Q (P, Q));
+      Check ("4.1 P behind plane of Q", Test_3_P_Behind_Plane_Of_Q (P => P, Q => Q));
+      Check ("4.2 Q not behind plane of P", not Test_3_P_Behind_Plane_Of_Q (P => Q, Q => P));
+      Check ("4.3 Drawing P before Q is valid", Can_Draw_P_Before_Q (P => P, Q => Q));
    end;
 
    ----------------------------------------------------------------------------
@@ -101,16 +102,16 @@ begin
    Put_Line ("TEST 5 -- Test 4: Plane Separation (Q in front of Plane of P)");
    declare
       P_Verts : constant Vertex_Array (1 .. 4) :=
-        ((0.0, 0.0, -10.0), (5.0, 0.0, -10.0), (5.0, 5.0, -10.0), (0.0, 5.0, -10.0));
+        [(0.0, 0.0, -10.0), (5.0, 0.0, -10.0), (5.0, 5.0, -10.0), (0.0, 5.0, -10.0)];
       Q_Verts : constant Vertex_Array (1 .. 3) :=
-        ((1.0, 1.0, -6.0), (2.0, 1.0, -6.0), (1.5, 2.0, -6.0));
+        [(1.0, 1.0, -6.0), (2.0, 1.0, -6.0), (1.5, 2.0, -6.0)];
 
       P : constant Polygon := Make_Polygon (1, P_Verts);
       Q : constant Polygon := Make_Polygon (2, Q_Verts);
    begin
-      Check ("5.1 Q is in front of plane of P", Test_4_Q_In_Front_Plane_Of_P (P, Q));
-      Check ("5.2 P is not in front of plane of Q", not Test_4_Q_In_Front_Plane_Of_P (Q, P));
-      Check ("5.3 Test 4 enables ordering", Can_Draw_P_Before_Q (P, Q));
+      Check ("5.1 Q is in front of plane of P", Test_4_Q_In_Front_Plane_Of_P (P => P, Q => Q));
+      Check ("5.2 P is not in front of plane of Q", not Test_4_Q_In_Front_Plane_Of_P (P => Q, Q => P));
+      Check ("5.3 Test 4 enables ordering", Can_Draw_P_Before_Q (P => P, Q => Q));
    end;
 
    ----------------------------------------------------------------------------
@@ -120,16 +121,16 @@ begin
    declare
       --  Triangles whose bounding boxes overlap, but actual shapes do not
       P_Verts : constant Vertex_Array (1 .. 3) :=
-        ((0.0, 0.0, -5.0), (3.0, 0.0, -5.0), (0.0, 3.0, -5.0));
+        [(0.0, 0.0, -5.0), (3.0, 0.0, -5.0), (0.0, 3.0, -5.0)];
       Q_Verts : constant Vertex_Array (1 .. 3) :=
-        ((2.0, 2.0, -5.0), (3.0, 1.0, -5.0), (3.0, 3.0, -5.0));
+        [(2.0, 2.0, -5.0), (3.0, 1.0, -5.0), (3.0, 3.0, -5.0)];
 
       P : constant Polygon := Make_Polygon (1, P_Verts);
       Q : constant Polygon := Make_Polygon (2, Q_Verts);
    begin
-      Check ("6.1 Bounding boxes overlap", not Test_2_XY_Box_Disjoint (P, Q));
-      Check ("6.2 Polygon silhouettes are disjoint", Test_5_2D_Polygons_Disjoint (P, Q));
-      Check ("6.3 Can draw safely in either order", Can_Draw_P_Before_Q (P, Q));
+      Check ("6.1 Bounding boxes overlap", not Test_2_XY_Box_Disjoint (P => P, Q => Q));
+      Check ("6.2 Polygon silhouettes are disjoint", Test_5_2D_Polygons_Disjoint (P => P, Q => Q));
+      Check ("6.3 Can draw safely in either order", Can_Draw_P_Before_Q (P => P, Q => Q));
    end;
 
    ----------------------------------------------------------------------------
@@ -138,7 +139,7 @@ begin
    Put_Line ("TEST 7 -- Bounding Box Calculation");
    declare
       V : constant Vertex_Array (1 .. 4) :=
-        ((-1.0, -2.0, -10.0), (3.0, 0.0, -5.0), (1.0, 4.0, -2.0), (-2.0, 1.0, -8.0));
+        [(-1.0, -2.0, -10.0), (3.0, 0.0, -5.0), (1.0, 4.0, -2.0), (-2.0, 1.0, -8.0)];
       B_XY : constant Box_2D := Compute_XY_Bounds (V);
       B_Z  : constant Depth_Range := Compute_Z_Bounds (V);
    begin
@@ -154,9 +155,9 @@ begin
    Put_Line ("TEST 8 -- Multi-Polygon Sorting (Strict)");
    declare
       List : Polygon_List;
-      P1 : constant Polygon := Make_Polygon (1, ((0.0, 0.0, -30.0), (1.0, 0.0, -30.0), (0.0, 1.0, -30.0)));
-      P2 : constant Polygon := Make_Polygon (2, ((0.0, 0.0, -10.0), (1.0, 0.0, -10.0), (0.0, 1.0, -10.0)));
-      P3 : constant Polygon := Make_Polygon (3, ((0.0, 0.0, -20.0), (1.0, 0.0, -20.0), (0.0, 1.0, -20.0)));
+      P1 : constant Polygon := Make_Polygon (1, [(0.0, 0.0, -30.0), (1.0, 0.0, -30.0), (0.0, 1.0, -30.0)]);
+      P2 : constant Polygon := Make_Polygon (2, [(0.0, 0.0, -10.0), (1.0, 0.0, -10.0), (0.0, 1.0, -10.0)]);
+      P3 : constant Polygon := Make_Polygon (3, [(0.0, 0.0, -20.0), (1.0, 0.0, -20.0), (0.0, 1.0, -20.0)]);
    begin
       List.Append (P2);
       List.Append (P1);
@@ -175,11 +176,10 @@ begin
    Put_Line ("TEST 9 -- Depth Conflict Order Resolution");
    declare
       List : Polygon_List;
-      --  P1 has smaller min Z (-12.0) than P2 (-10.0), but P1 is in front of P2
       P1_Verts : constant Vertex_Array (1 .. 3) :=
-        ((0.0, 0.0, -8.0), (2.0, 0.0, -8.0), (0.0, 2.0, -8.0));
+        [(0.0, 0.0, -8.0), (2.0, 0.0, -8.0), (0.0, 2.0, -8.0)];
       P2_Verts : constant Vertex_Array (1 .. 3) :=
-        ((0.0, 0.0, -15.0), (2.0, 0.0, -15.0), (0.0, 2.0, -15.0));
+        [(0.0, 0.0, -15.0), (2.0, 0.0, -15.0), (0.0, 2.0, -15.0)];
 
       P1 : constant Polygon := Make_Polygon (1, P1_Verts);
       P2 : constant Polygon := Make_Polygon (2, P2_Verts);
@@ -202,7 +202,7 @@ begin
    declare
       Empty_List  : Polygon_List;
       Single_List : Polygon_List;
-      P : constant Polygon := Make_Polygon (99, ((0.0, 0.0, -1.0), (1.0, 0.0, -1.0), (0.0, 1.0, -1.0)));
+      P : constant Polygon := Make_Polygon (99, [(0.0, 0.0, -1.0), (1.0, 0.0, -1.0), (0.0, 1.0, -1.0)]);
    begin
       Sort_Polygons_Strict (Empty_List);
       Check ("10.1 Empty list sorting succeeds with 0 length", Empty_List.Length = 0);
@@ -221,7 +221,7 @@ begin
       Caught : Boolean := False;
       --  Collinear vertices with zero area
       Degen : constant Vertex_Array (1 .. 3) :=
-        ((0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 2.0, 2.0));
+        [(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 2.0, 2.0)];
    begin
       begin
          declare
@@ -238,7 +238,7 @@ begin
             null;
       end;
       Check ("11.1 Collinear polygon raises Degenerate_Polygon_Error", Caught);
-      Check ("11.2 Error flag was set", Caught = True);
+      Check ("11.2 Error flag was set", Caught);
       Check ("11.3 Normal calculation aborted safely", Caught);
    end;
 
@@ -250,12 +250,10 @@ begin
       List : Polygon_List;
       Cycle_Caught : Boolean := False;
 
-      --  Classical 3-polygon mutual cycle (P1 in front of P2, P2 in front of P3, P3 in front of P1)
-      --  Simulated with mutually overlapping spans
       P1 : constant Polygon := Make_Polygon (1,
-        ((0.0, 0.0, -5.0), (3.0, 0.0, -8.0), (1.5, 3.0, -6.0)));
+        [(0.0, 0.0, -5.0), (3.0, 0.0, -8.0), (1.5, 3.0, -6.0)]);
       P2 : constant Polygon := Make_Polygon (2,
-        ((0.0, 0.0, -6.0), (3.0, 0.0, -5.0), (1.5, 3.0, -8.0)));
+        [(0.0, 0.0, -6.0), (3.0, 0.0, -5.0), (1.5, 3.0, -8.0)]);
    begin
       List.Append (P1);
       List.Append (P2);
@@ -280,9 +278,9 @@ begin
       List : Polygon_List;
       Splits : Natural := 0;
       P1 : constant Polygon := Make_Polygon (1,
-        ((0.0, 0.0, -5.0), (3.0, 0.0, -10.0), (1.5, 3.0, -7.0)));
+        [(0.0, 0.0, -5.0), (3.0, 0.0, -10.0), (1.5, 3.0, -7.0)]);
       P2 : constant Polygon := Make_Polygon (2,
-        ((1.0, 1.0, -7.0), (4.0, 1.0, -6.0), (2.5, 4.0, -9.0)));
+        [(1.0, 1.0, -7.0), (4.0, 1.0, -6.0), (2.5, 4.0, -9.0)]);
    begin
       List.Append (P1);
       List.Append (P2);
@@ -291,7 +289,7 @@ begin
 
       Check ("13.1 Adaptive sorting executed without unhandled exception", True);
       Check ("13.2 Polygons list is populated", List.Length >= 2);
-      Check ("13.3 Split counter is non-negative", Splits >= 0);
+      Check ("13.3 Split counter is non-negative", True);
    end;
 
    ----------------------------------------------------------------------------
