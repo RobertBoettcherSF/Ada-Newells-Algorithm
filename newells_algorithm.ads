@@ -2,6 +2,7 @@
 --  3D Polygon Depth-Sorting for Hidden Surface Removal.
 --  Compliant with Ada 2023 (ISO/IEC 8652:2023).
 
+with Ada.Containers; use Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 
 package Newells_Algorithm with
